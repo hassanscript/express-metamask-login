@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login with metamask</title>
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://unpkg.com/@metamask/detect-provider/dist/detect-provider.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.3/web3.min.js"
+      integrity="sha512-Ws+qbaGHSFw2Zc1e7XRpvW+kySrhmPLFYTyQ95mxAkss0sshj6ObdNP3HDWcwTs8zBJ60KpynKZywk0R8tG1GA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <h1>Login with metamask</h1>
+    <div>
+      <p id="info"></p>
+      <button id="login">Login with metamask</button>
+      <button id="logout">Logout</button>
+    </div>
+  </body>
+</html>
+<script>
+  jQuery(document).ready(($) => {
+    const infoText = $("#info");
+    const loginButton = $("#login");
+    const logoutButton = $("#logout");
+
+    loginButton.on("click", async () => {
+      // 1 - connect metamask with the frontend
+
+      infoText.text("connecting metamask!!");
+
+      const provider = await detectEthereumProvider();
+
+      if (!provider) {
+        return infoText.text("metamask is not installed!!!");
+      }
+
+      await provider.enable();
+      infoText.text("metamask connected!!");
+
+      // 2 - get the wallet address from metamask
+
+      const web3 = new Web3(provider);
+      const walletAddress = await web3.eth.getCoinbase();
+
+      // 3 - send the wallet address to the server
+
+      const response1 = await fetch(`/nonce?walletAddress=${walletAddress}`);
+
+      const { nonce } = await response1.json();
+
+      // 4 - get the nonce and sign it
+
+      const signedNonce = await web3.eth.personal.sign(nonce, walletAddress);
+
+      // 5 - send the nonce to the server
+
+      const response2 = await fetch(
+        `/verify?walletAddress=${walletAddress}&signedNonce=${signedNonce}`
+      );
+      const { success } = await response2.json();
+      await checkSession();
+    });
+
+    logoutButton.on("click", async () => {
+      infoText.text("Logging out, please wait!");
+      const response = await fetch("/logout");
+      await checkSession();
+    });
+
+    const checkSession = async () => {
+      infoText.text("checking session!");
+      const response = await fetch("/check");
+      const data = await response.json();
+      const { success, walletAddress } = data;
+      if (success) {
+        logoutButton.show();
+        loginButton.hide();
+        infoText.text("You are logged in with your wallet: " + walletAddress);
+      } else {
+        logoutButton.hide();
+        loginButton.show();
+        infoText.text("You are currently not logged in with metamask");
+      }
+    };
+    checkSession();
+  });
+</script>
