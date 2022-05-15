@@ -1,5 +1,5 @@
 {
-  "name": "metamask-login",
+  "name": "express-metamask-login",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
